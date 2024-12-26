@@ -1,0 +1,31 @@
+#remove -trim to manually crop later
+mogrify -background white -alpha remove -trim -resize 800x600 -format png *.eps
+ 
+ls *.png | cat -n | while read n f; do mv "$f" $(printf "frame_%04d.png" $n); done
+
+#for odd heights
+ffmpeg -framerate 3 -i frame_%04d.png -vf "pad=iw:if(lte(ih\,2)\,ih\,ih+1)" -pix_fmt yuv420p output.mp4
+
+#for odd widths
+ffmpeg -framerate 3 -i frame_%04d.png -vf "pad=if(gte(iw\,2)\,iw\,iw+1):ih" -pix_fmt yuv420p output.mp4
+
+#to manually crop
+ffmpeg -framerate 6 -i frame_%04d.png -vf "crop=420:300:0:300" -pix_fmt yuv420p zoomview_azimuthang0.mp4
+
+
+#!/bin/bash
+
+# Find all PNG files and sort them by the number after "count"
+ls *.png | sed -nE 's/.*count([0-9]+)_.*\.png/\1 &/p' | sort -n | while read count filename; do
+  # Use printf to create a zero-padded frame name
+  new_name=$(printf "frame_%04d.png" $count)
+  
+  # Print the old and new file names
+  echo "Renaming: $filename -> $new_name"
+  
+  # Rename the file
+  mv "$filename" "$new_name"
+done
+
+echo "Files renamed based on 'count' successfully!"
+
