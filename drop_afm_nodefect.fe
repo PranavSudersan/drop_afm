@@ -1,72 +1,55 @@
 
-// bubble_bridge.fe
-// Evolver data for bubble between plate and a pillar
-// Bottom surface contact angle can be varied
-//Bubble is pinned to rim of pillar. Radius can be changed
-//Modulus of pillar can be changed to account for elastic deformation
-//Origin at center of bubble between pillar and surface
+// drop_afm_nodefect.fe
+//Author: Pranav Sudersan
+//January 2025
+// Surface Evolver model of a liquid drop attached to a cantilver interacting with a flat substrate
+// The drop is pinned along a circular line on the cantilever (given by pin_radius)
+// and makes a contact angle "bottom_angle" with the substrate below.
+// Use "run" to simulate and save data for set parameters.
+// The defect related parameters are dummy values, used to visualize a hypothetical defect's position, 
+// without considering it in the simulation's energy minimization.
+// Lengths, forces and energies are in non-dimensional units relative to s, gamma*s, gamma*s^2
+// Here s = (3*vol/4*pi)^(1/3) and gamma is surface tension.
 
-//CHECK IF CONSTRAINT 5 IS APPLIED ON FACES. REMOVE AS PER REQUIREMENT
-
-//IMPORTANT: Angles taken w.r.t. water (outside) for a bubble capillary bridge. For fluid bridge,
-//set angles to complement value. Check "CHECK" tags in code.
-
-//CHECK EVOLVE ROUTINE OPTIONS "gogo" BELOW! UNCOMMENT ACCORDINGLY!
-
-//parameter top_angle = 120    // pinning angle (top)
-parameter bottom_angle = 114 // contact angle (bottom)
-parameter defect_contact_angle = 70 // contact angle (bottom)
+parameter bottom_angle = 108 // contact angle with substrate
 parameter pin_radius = 0.644131428456558 //1.29 // pinning radius
 parameter height = 1.2*0.92018775493794    // current separation of plates (SET EQUAL TO height_start!)
-parameter defect_size = 0.0161953044869077 //*pi/2 //defect diameter
-//parameter core_size = -0.2 //defect core size
-parameter rad_nodefect = 1.12684256818137//1.26769441630408 //radius of drop-substrate contact line without defect
-parameter beta = 90//35 //opening angle of spherical defect
-parameter azimuthal_angle = 0 // azimuthal angle
-parameter defect_disp = 0//-(defect_size/2) // defect displacement
-parameter defect_posx = defect_disp*sin(azimuthal_angle*pi/180)//0 // defect x position (perpendicular to drop axis)
-parameter defect_posy = rad_nodefect+defect_disp*cos(azimuthal_angle*pi/180)//1.0//1.28992 //+ (core_size/20)*(-10)// defect y position (along drop axis/center)
-parameter y_modulus = 1E6  // Young's modulus (Y*s/gamma), inverse of elastocapillary number (stiff: 1e6)
-parameter aspect_ratio = 1 //aspect ratio h/2r
-parameter height_start = 0.3    // initial sepa ration of plates
-parameter height_end = 0.5    // final separation of plates
-parameter dh = 0.025 //height step size
-parameter pillar_height = 2*pin_radius*aspect_ratio
 
-//pressure 10 //ideal gas model, non-dimensionalized as P/(y/s)
+// defect parameters for display only
+parameter defect_size = 0.0161953044869077 //defect diameter
+parameter rad_nodefect = 1.16188138016565 //radius of drop-substrate contact line without defect
+parameter beta = 90 //opening angle of spherical defect (=90 for hemisphere)
+parameter azimuthal_angle = 0 // azimuthal angle
+parameter defect_disp = 0 // defect displacement
+parameter defect_posx = defect_disp*sin(azimuthal_angle*pi/180)// defect x position (perpendicular to drop axis)
+parameter defect_posy = rad_nodefect+defect_disp*cos(azimuthal_angle*pi/180)// defect y position (along drop axis/center)
 
 gravity_constant 0  // start with gravity off
 
 keep_macros
 
-//view_matrix // view focus on bridge
+// overview diplay
+//view_matrix
 //1 0 0 0
 //0 1 0 0
 //0 0 1 0
 //0 0 0 1.5
 
+// focused diplay
 view_matrix
 7.26392190669369 12.497158004959 5.99963209311849 -11.2674409822945
 -12.0887845705706 9.02560531225355 -4.16399342866702 -14.6120684632819
 -6.78497096972585 -2.70159128417622 13.842134170476 10.6015259583858
 0 0 0 1.5
 
-//view_matrix
-//-0.651637061596501 -0.664507175429934 -10.6498427754753 -4.49968916915235
-//-8.84894241367995 -5.92882432781283 0.911379195450041 7.77097233695534
-//-5.96296395158632 8.87089759225787 -0.188649432399915 -11.4171609923581
-//0 0 0 1.5
 
 #define vol 4*pi/3
 #define width 2*1.28992/sqrt(2) //(vol/height)^0.5
 #define widthr 2*1.28992
 #define Rd defect_size/2 //radius of defect
-//#define pillar_height 2*pin_radius*aspect_ratio
 
 // Contact surface tensions
-//#define UPPERT  (cos(top_angle*pi/180))  // virtual tension of facet on plane
 #define LOWERT -cos(bottom_angle*pi/180)
-#define DEFT -cos(defect_contact_angle*pi/180)
 
 quantity upper_length info_only method edge_scalar_integral  // top contact length
 scalar_integrand: 1
@@ -91,7 +74,7 @@ q3: 0
 
 quantity mean_c info_only method mean_curvature_integral  // mean curvature
 
-constraint 1 convex/* the lower plate */
+constraint 1 convex/* substrate below */
 formula: z = -height/2
 energy:  // for contact angle
 e1: -(LOWERT*y) //+ G*z^2/2*y
@@ -102,18 +85,14 @@ c1: 0
 c2: -z*x
 c3: 0
 
-constraint 2 convex/* the upper plate */
+constraint 2 convex/* cantilever on top */
 formula: z = height/2
-//energy:  // for contact angle and gravitational energy under missing facets
-//e1: -(UPPERT*y) //+ G*z^2/2*y
-//e2: 0
-//e3: 0 
 content:
 c1: z*y
 c2: 0
 c3: 0
 
-constraint pinned convex/* pinning constraint */
+constraint pinned convex/* pinning constraint on cantilver */
 formula: x^2 + y^2 = pin_radius^2
 
 //constrain all vertices to lie between plates (not used)
@@ -123,25 +102,12 @@ formula: z = (height/2)
 constraint 4 nonnegative 
 formula: z = -(height/2)
 
-//constrain vertices to lie outside pillar region (include in faces only) CHECK!
+//constrain vertices to lie outside pillar region (include in faces only) 
 constraint 5 nonnegative //USE ONLY FOR SMALL HEIGHT AND HYDROPHILIC SURFACE!!
 formula: x^2 + y^2 = pin_radius^2
 
-//spherical defect constraint
-constraint 6 convex
-formula: (x-defect_posx)^2 + (y-defect_posy)^2 + (z+(height/2)-(Rd*cos(beta*pi/180)))^2 = (defect_size/2)^2
-energy:  // for contact angle
-//e1: -((LOWERT*(-sqrt(abs((defect_size/2)^2-(x-defect_posx)^2)+defect_posy))) + (DEFT*(sqrt(abs((defect_size/2)^2-(x-defect_posx)^2))*asin(((height/2)+z)/sqrt(abs((defect_size/2)^2-(x-defect_posx)^2)))))) //+ G*z^2/2*y
-e1: -( (LOWERT*(defect_posy-sqrt(Rd^2-(x-defect_posx)^2-(Rd*cos(beta*pi/180))^2))) + (DEFT*(sqrt(Rd^2-(x-defect_posx)^2)*((pi/2)+asin(((height/2)+z-(Rd*cos(beta*pi/180)))/sqrt(Rd^2-(x-defect_posx)^2))-acos(Rd*cos(beta*pi/180)/sqrt(Rd^2-(x-defect_posx)^2))))) )
-e2: 0
-e3: 0
-content: //volume correction
-c1: 0
-c2: (height*x/2) - ((1/2)*((asin(((height/2)+z-(Rd*cos(beta*pi/180)))/sqrt(Rd^2-(x-defect_posx)^2))*(Rd^2-(y-defect_posy)^2))-((defect_posx-x)*((height/2)+z))))//-z*x
-c3: 0
-
 constraint defect
-formula: (x-defect_posx)^2 + (y-defect_posy)^2 + (z+(height/2)-(Rd*cos(beta*pi/180)))^2 = (defect_size/2)^2
+formula: (x-defect_posx)^2 + (y-defect_posy)^2 + (z+(height/2))^2 = Rd^2
 
 //constraint plates (not needed)
 constraint lower_plate
@@ -150,8 +116,6 @@ formula: z = -height/2
 constraint upper_plate
 formula: z = height/2
 
-constraint pillar_top
-formula: z = pillar_height+height/2
 
 // for restoring after perturbation
 define vertex attribute old_coord real[3]
@@ -163,12 +127,6 @@ vertices
     2   width/2  -width/2 -height/2  constraint 1,4
     23  widthr/2  0 -height/2  constraint 1,4
     3   width/2  width/2 -height/2  constraint 1,4
-//    341	defect_posx+(defect_size/2)	defect_posy -height/2  constraint 6,4
-//    342	defect_posx	defect_posy (defect_size/2)-height/2  constraint 6,4
-//    343	defect_posx-(defect_size/2)	defect_posy -height/2  constraint 6,4
-//    341	defect_posx+(Rd*sin(beta*pi/180))	defect_posy -height/2  constraint 6,lower_plate
-//    342	defect_posx	defect_posy (Rd*(1+cos(beta*pi/180)))-height/2  constraint 6,4
-//    343	defect_posx-(Rd*sin(beta*pi/180))	defect_posy -height/2  constraint 6,lower_plate
     34   0  widthr/2 -height/2  constraint 1,4
     4   -width/2  width/2 -height/2  constraint 1,4
     41  -widthr/2  0 -height/2  constraint 1,4
@@ -180,14 +138,6 @@ vertices
     54  2 -2 -height/2 fixed constraint lower_plate
     55 -2 -2 -height/2 fixed constraint lower_plate
     56 -2  2 -height/2 fixed constraint lower_plate
-//    17   -width/2  -width/2 height/2  constraint upper_plate,pinned  /* pillar */
-//    18   width/2  -width/2 height/2  constraint upper_plate,pinned
-//    19   width/2  width/2 height/2  constraint upper_plate,pinned
-//    20   -width/2  width/2 height/2  constraint upper_plate,pinned
-//    21   -width/2  -width/2 pillar_height+height/2  constraint pillar_top,pinned
-//    22   width/2  -width/2 pillar_height+height/2  constraint pillar_top,pinned
-//    23   width/2  width/2 pillar_height+height/2  constraint pillar_top,pinned
-//    24   -width/2  width/2 pillar_height+height/2  constraint pillar_top,pinned
     61   1.5  pin_radius height/2 fixed constraint upper_plate/* for upper cantilever */
     62  1.5 -pin_radius height/2 fixed constraint upper_plate
     63 -6 -pin_radius height/2 fixed constraint upper_plate
@@ -208,10 +158,6 @@ edges  /* given by endpoints and attribute */
     2   2 23    constraint 1,4 color green lower_length lower_area mean_c
     23   23 3    constraint 1,4 color green lower_length lower_area mean_c
     3   3 34    constraint 1,4 color green lower_length lower_area mean_c
-//    341   3 341    constraint 1,4 color green lower_length lower_area mean_c
-//    342   341 342    constraint 6,4 color green defect_line lower_length lower_area mean_c
-//    343   342 343    constraint 6,4 color green defect_line lower_length lower_area mean_c
-//    344   343 4    constraint 1,4 color green lower_length lower_area mean_c
     34   34 4    constraint 1,4 color green lower_length lower_area mean_c
     4   4 41    constraint 1,4 color green lower_length lower_area mean_c
     41   41 1    constraint 1,4 color green lower_length lower_area mean_c
@@ -244,62 +190,25 @@ edges  /* given by endpoints and attribute */
     80 72 76 tension 0  constraint defect,4
     81 73 77 tension 0  constraint defect,4
     82 74 78 tension 0  constraint defect,4
-//    25 17 18 tension 0  constraint upper_plate,pinned /* pillar */
-//    26 18 19 tension 0  constraint upper_plate,pinned
-//    27 19 20 tension 0  constraint upper_plate,pinned
-//    28 20 17 tension 0  constraint upper_plate,pinned
-//    29 21 22 tension 0 constraint pillar_top,pinned
-//    30 22 23 tension 0 constraint pillar_top,pinned
-//    31 23 24 tension 0 constraint pillar_top,pinned
-//    32 24 21 tension 0 constraint pillar_top,pinned
-//    33 17 21 tension 0 constraint pinned
-//    34 18 22 tension 0 constraint pinned
-//    35 19 23 tension 0 constraint pinned
-//    36 20 24 tension 0 constraint pinned
 
 faces  /* given by oriented edge loop */
-    1  1 12 15 -5  -13 constraint 3,4 frontcolor lightblue //Add constraint 5 here for log heights
+    1  1 12 15 -5  -13 constraint 3,4 frontcolor lightblue
     2  2 23 17 -6 -15 constraint 3,4 frontcolor lightblue 
-    3  3 34 19 -7 -17 constraint 3,4 frontcolor lightblue 
-//    3  341 342 343 344 19 -7 -17 constraint 4 frontcolor lightblue 
+    3  3 34 19 -7 -17 constraint 3,4 frontcolor lightblue  
     4  4 41 13 -8 -19 constraint 3,4 frontcolor lightblue
-    //defect
-//    5 71 80 -75 -79 tension 0 constraint defect,4 frontcolor red
-//    6 72 81 -76 -80 tension 0 constraint defect,4 frontcolor red
-//    7 73 82 -77 -81 tension 0 constraint defect,4 frontcolor red
-//    8 74 79 -78 -82 tension 0 constraint defect,4 frontcolor red
-    //9 71 72 73 74 tension 0 constraint defect,4 frontcolor red
-//    10 75 76 77 78 tension 0 constraint defect,4 frontcolor red
-
-//    5 25 26 27 28 tension 0 no_refine constraint upper_plate color clear
-//    5 25 34 -29 -33 tension 0 constraint pinned frontcolor red //top pillar
-//    6 26 35 -30 -34 tension 0 constraint pinned frontcolor red
-//    7 27 36 -31 -35 tension 0 constraint pinned frontcolor red
-//    8 28 33 -32 -36 tension 0 constraint pinned frontcolor red
-    //9 21 22 23 24 tension 0 fixed color lightblue // lower plane for display
-
 
 bodies  /* one body, defined by its oriented faces */
     1   1 2 3 4    volume vol density 1 
-    //    2   5 6 7 8 density 0
 
 
 //----------------------SCRIPT----------------------//
 read
 
-set background white;
-
-//set edge color clear where on_constraint pinned;
-
 //color formatting
-//set face color lightred where on_constraint pinned;
-//set face color lightblue where on_constraint 4;
+set background white;
 refine edges where on_constraint defect;
-//set edge color clear where on_constraint defect;
-//set edge color clear;
-//set edge color blue where on_constraint lower_plate;
 
-
+// refinement routines
 re := { refine edges where on_constraint 1 or on_constraint pinned}
 re1 := { refine edges where on_constraint 1}
 re2 := { refine edges where on_constraint 6} //refine defect
@@ -310,6 +219,7 @@ re4 := {foreach edge ee where on_constraint 6 do
 	};
 	}
 
+// evolution routines
 gogo_old := {  g 20; V; u; g 20; V; r; u; g 20; V; r; u; g20; r; u; V; g 20; re; u; V; g 20; r; u; V; g 20; 
 		r; u; V; g 20; U;g10;U; U;g10;U;};     
 gogo2 := {  g 20; r; re; re2; g 20; r; g 20; u; V; g 20; r; u; V; g 20; r; u; V; g 100;};     
@@ -355,7 +265,8 @@ gogo := {re2; //re4; re2; re4; re2; re4;
 	set edge color clear where on_constraint defect;
 	}
  
- // save snapshots       
+ 
+ // save simulation snapshot in various perspectives       
 save_figures := {
   
   figname_suffix := sprintf "posx%#2.5g_posy%#2.5g", defect_posx, defect_posy;
@@ -368,8 +279,7 @@ save_figures := {
     {-0.319838034993415,0.658167970698604,-0.0843151262029039,-0.0302123475893527},
     {-0.268915265508035,-0.0430022000007875,0.684416450387052,0.014219942170051},
     { 0, 0, 0, 1}};
-  postscript sprintf "data/tiltview_%s.eps", figname_suffix;   
-  //window_aspect_ratio := 0.7;    
+  postscript sprintf "data/tiltview_%s.eps", figname_suffix;      
    view_matrix := 
    {{15.1131383929488,26.0012815216871,12.4826879053479,-23.4427623379157},
     {-25.151629734513,18.7784538320166,-8.66350296205457,-29.358376846996},
@@ -384,7 +294,6 @@ save_figures := {
     { 0, 0, 0,1.5}};
     
     postscript sprintf "data/sideview_%s.eps", figname_suffix; 
-   //window_aspect_ratio := 1;
    set edge color clear;
    set face color clear;
    set edge color blue where on_constraint 1;
@@ -398,20 +307,7 @@ save_figures := {
      { 0, 0, 0,1.5}};
 
    postscript sprintf "data/bottomviewfull_%s.eps", figname_suffix;
-   
-   //view_matrix := 
-   // {{ 0, 0,-16.2120057716837, 0},
-   //  { 0,-16.2120057716837, 0,-22.6913954044798},
-   //  {-16.2120057716837, 0, 0,-0.00541848778751589},
-   //  { 0, 0, 0,1.5}};
 
-   //postscript sprintf "data/bottomview1_%s.eps", figname_suffix;
-   //window_aspect_ratio := 1;
-//   view_matrix := 
-//   {{1.84691243064776,1.4862336168025,0.727266884091491,0.00217704141351831},
-//    {-1.45014937721402,1.97877669139154,-0.361113002067594,-1.95914257564595},
-//    {-0.796789977456819,-0.156350416637644,2.34298384329312,0.190185812504996},
-//    { 0, 0, 0,1.5}};
     view_matrix :=
     {{ 0, 0,-16.2120057716837, 0},
      { 0,-16.2120057716837, 0,20.8461991933837},
@@ -421,7 +317,7 @@ save_figures := {
 
 }
 
- // save snapshots       
+ // save current simulation snapshot       
 save_currentfig := {
   
   figname_suffix := sprintf "azimang%#2.3g_posy%#2.5g", azimuthal_angle, defect_posy;
@@ -431,19 +327,12 @@ save_currentfig := {
    ps_gridflag on;
    ps_colorflag on;
   postscript sprintf "data/zoomview_%s.eps", figname_suffix;
-  
-//  view_matrix :=
-//  {{0.675169165497429,1.28763639824613,-13.5065220950695,-11.74099042677},
-// {-4.28057828269059,12.8527761849386,1.01133273770414,-16.8814696636716},
-// {12.8748124710394,4.20572667282468,1.04454152132644,-5.28270877042601},
-// { 0, 0, 0,1.5}};
-// postscript sprintf "data/bottomview_%s.eps", figname_suffix;
-  
 
 }
 
+// calculate contact angle with substrate
 compute_contactang := {
-	// calculate contact angle with defect
+	
 	contactangle_sum := 0;
 	ind := 0;
 	    foreach edge ee where on_constraint 1 do
@@ -453,61 +342,27 @@ compute_contactang := {
 	    normz := ee.vertex[1].vertex_normal[3] + ee.vertex[2].vertex_normal[3];
 	    norm_mod := sqrt(normx^2 + normy^2 + normz^2);
 	    dotprod_angle := (acos(normz/norm_mod)*180/pi);
-	    //if dotprod_angle > 90 then dotprod_angle := 180-dotprod_angle;
-	    contactangle_sum := contactangle_sum + (dotprod_angle);//(acos(normz/norm_mod)*180/pi) - (acos(defnormz/defnorm_mod)*180/pi) + 90;
+	    contactangle_sum := contactangle_sum + (dotprod_angle);
 	    pos_angle := 0.5*(atan2(ee.vertex[1].y,ee.vertex[1].x)+atan2(ee.vertex[2].y,ee.vertex[2].x))*180/pi;
 	    printf "%g,%g,%g,%g,%g\n", dotprod_angle, pos_angle, (ee.vertex[1].x+ee.vertex[2].x)/2, (ee.vertex[1].y+ee.vertex[2].y)/2, (ee.vertex[1].z+ee.vertex[2].z)/2;
 	    ind++;
 	};
-	edge_contactangle := contactangle_sum/ind; //average contact angle of defect
-	//printf "defect_contactangle: %g, %g\n", edge_contactangle, (acos(normz/norm_mod)*180/pi);
+	edge_contactangle := contactangle_sum/ind; //average contact angle with substrate
 }
 
-compute_contactangdef := {
-	// calculate contact angle with defect
-	defect_contactangle_sum := 0;
-	ind := 0;
-	    foreach edge ee where on_quantity defect_line do
-	{   
-	    normx := ee.vertex[1].vertex_normal[1] + ee.vertex[2].vertex_normal[1];
-	    normy := ee.vertex[1].vertex_normal[2] + ee.vertex[2].vertex_normal[2];
-	    normz := ee.vertex[1].vertex_normal[3] + ee.vertex[2].vertex_normal[3];
-	    norm_mod := sqrt(normx^2 + normy^2 + normz^2);
-
-	    defnormx := 0.5*(ee.vertex[1].x + ee.vertex[2].x) - defect_posx;
-	    defnormy := 0.5*(ee.vertex[1].y + ee.vertex[2].y) - defect_posy;
-	    defnormz := 0.5*(ee.vertex[1].z + ee.vertex[2].z) + (height/2) - (Rd*cos(beta*pi/180));
-	    defnorm_mod := sqrt(defnormx^2 + defnormy^2 + defnormz^2);
-	    dotprod := (normx*defnormx) + (normy*defnormy) + (normz*defnormz);
-	    dotprod_angle := (acos(dotprod/(norm_mod*defnorm_mod))*180/pi);
-	    //if dotprod_angle > 90 then dotprod_angle := 180-dotprod_angle;
-	    defect_contactangle_sum := defect_contactangle_sum + (dotprod_angle);//(acos(normz/norm_mod)*180/pi) - (acos(defnormz/defnorm_mod)*180/pi) + 90;
-	    //printf "%g,%g,%g,%g\n", (acos(normz/norm_mod)*180/pi) , (acos(defnormz/defnorm_mod)*180/pi), (acos(normz/norm_mod)*180/pi) - (acos(defnormz/defnorm_mod)*180/pi) + 90, temp_angle;
-	    ind++;
-	};
-	defect_contactangle := defect_contactangle_sum/ind; //average contact angle of defect
-	printf "defect_contactangle: %g, %g\n", defect_contactangle, (acos(normz/norm_mod)*180/pi);
-}
 
 //compute forces on top contact line
 run := {
-    gogo_old;
-    force_latx_sum := 0;
-    force_laty_sum := 0;
-    force_norm_sum := 0;
-            foreach edge ee where on_constraint 2 do
+	gogo_old;
+	force_latx_sum := 0;
+	force_laty_sum := 0;
+	force_norm_sum := 0;
+        foreach edge ee where on_constraint 2 do
         {   
-            //ee_lenx := ee.length * ee.edge_vector[1];
-            //ee_leny := ee.length * ee.edge_vector[2];
             normx := ee.vertex[1].vertex_normal[1] + ee.vertex[2].vertex_normal[1];
             normy := ee.vertex[1].vertex_normal[2] + ee.vertex[2].vertex_normal[2];
             normz := ee.vertex[1].vertex_normal[3] + ee.vertex[2].vertex_normal[3];
             norm_mod := sqrt(normx^2 + normy^2 + normz^2);
-            //edgenormx := ee.edge_vector[2];
-            //edgenormy := -ee.edge_vector[1];
-            //edgecenterx := 0.5*(ee.vertex[1].x + ee.vertex[2].x);
-            //edgecentery := 0.5*(ee.vertex[1].y + ee.vertex[2].y);
-            //printf "%g,%g,%g,%g\n", edgenormx, normx, edgenormy, normy;
             force_latx := ee.length * normx/norm_mod;
             force_laty := ee.length * normy/norm_mod;
             force_norm := ee.length * normz/norm_mod;
@@ -515,30 +370,20 @@ run := {
             force_latx_rot := (force_latx*cos(azimuthal_angle*pi/180)) - (force_laty*sin(azimuthal_angle*pi/180));
             force_laty_rot := (force_latx*sin(azimuthal_angle*pi/180)) + (force_laty*cos(azimuthal_angle*pi/180));
             force_lat := sqrt(force_latx_rot^2 + force_laty_rot^2);
-            //pos_angle := 0.5*(atan2(ee.vertex[1].y,ee.vertex[1].x)+atan2(ee.vertex[2].y,ee.vertex[2].x))*180/pi;
-            //edge_contactangle := 180 - (acos(normz/norm_mod)*180/pi);
-            //printf "%g, %g, %g, %g, %g, %g,\n", pos_angle, edge_contactangle, force_latx, force_laty, force_lat, force_norm;
             force_latx_sum := force_latx_sum + force_latx_rot;
             force_laty_sum := force_laty_sum + force_laty;
             force_norm_sum := force_norm_sum + force_norm;
-            //printf "cord: %g, %g, %g, %g, %g, %g\n", ee.vertex[1].x, ee.vertex[1].y, ee.vertex[1].z, ee.vertex[2].x, ee.vertex[2].y, ee.vertex[1].z;
         };
-        //compute_contactangdef;
-        // find cordinates of lower contact line
-//            foreach vertex vv where on_constraint 1 do
-//        {   
-//            printf "cords, %g, %g, %g, %g\n", atan2(vv.y,vv.x)*180/pi, vv.x, vv.y, vv.z;
-//        };
-        defect_angle := 0; //atan2(defect_posy, defect_posx)*180/pi;
-        defect_contactangle := 0;
-        defect_pos_angle := 0;
-        dataline := sprintf "%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", azimuthal_angle, defect_angle, defect_disp, defect_posx, defect_posy, defect_size, beta, pin_radius, height, force_latx_sum, force_laty_sum, force_norm_sum, total_energy, bottom_angle, defect_contactangle;
-        printf "RESULT: %s", dataline;
-        
-        outfile := "data/results.txt";
-        printf "%s",dataline >> outfile;
-        save_figures;
-        //save_currentfig;  
+	//radius of contact line below. NOTE: Use this to set "rad_nodefect" in drop_afm.fe
+	rad_nodefect_max := max(vertex where on_constraint 1, x);
+	dataline := sprintf "%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", pin_radius, height, rad_nodefect_max, force_latx_sum, force_laty_sum, force_norm_sum, total_energy, bottom_angle;
+	printf "RESULT: %s", dataline;
+
+	outfile := "data/results.txt"; //set output data file path.
+	printf "%s",dataline >> outfile;
+	//uncomment below to save figures
+	//save_figures;
+	//save_currentfig;  
         
         }
 
